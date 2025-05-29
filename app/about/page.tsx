@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Header } from "@/components/layout/Header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const stats = [
@@ -81,38 +82,7 @@ const milestones = [
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold text-blue-600">AI工具导航</span>
-            </Link>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/tools" className="text-gray-600 hover:text-blue-600 transition-colors">
-                工具库
-              </Link>
-              <Link href="/categories" className="text-gray-600 hover:text-blue-600 transition-colors">
-                分类
-              </Link>
-              <Link href="/submit" className="text-gray-600 hover:text-blue-600 transition-colors">
-                提交工具
-              </Link>
-              <Link href="/about" className="text-blue-600 font-medium">
-                关于我们
-              </Link>
-            </nav>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" asChild>
-                <Link href="/login">登录</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/register">注册</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header currentPage="about" />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-20">

@@ -74,26 +74,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserProfile(profile)
     } catch (error) {
       console.error("Error loading user profile:", error)
+
+      // 尝试直接从数据库获取用户信息
+      try {
+        const { data: directProfile, error: directError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single()
+
+        if (!directError && directProfile) {
+          setUserProfile(directProfile)
+          return
+        }
+
+        // 如果按ID找不到，尝试按邮箱查找
+        if (user?.email) {
+          const { data: emailProfile, error: emailError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', user.email)
+            .single()
+
+          if (!emailError && emailProfile) {
+            setUserProfile(emailProfile)
+            return
+          }
+        }
+      } catch (dbError) {
+        console.error("Error fetching user from database:", dbError)
+      }
+
       // Create a minimal profile for display purposes
       if (user) {
+        const defaultRole = user.email === 'admin@aitools.com' ? 'admin' : 'user'
+
         setUserProfile({
           id: userId,
           email: user.email || "",
-          name: user.user_metadata?.name || "User",
-          role: "user",
+          password_hash: "",
+          name: user.user_metadata?.name || (user.email === 'admin@aitools.com' ? '系统管理员' : "User"),
+          role: defaultRole,
           status: "active",
           email_verified: user.email_confirmed_at ? true : false,
           created_at: user.created_at,
           updated_at: new Date().toISOString(),
-          last_login: new Date().toISOString(),
+          last_login_at: new Date().toISOString(),
           avatar_url: user.user_metadata?.avatar_url || null,
-          bio: null,
-          website: null,
-          location: null,
+          bio: undefined,
+          location: undefined,
           favorite_count: 0,
           tools_submitted: 0,
           tools_approved: 0,
-          reputation_score: 0,
         })
       }
     }
@@ -113,10 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      const result = await AuthAPI.signUp(email, password, name)
+      await AuthAPI.signUp(email, password, name)
       // Don't try to load profile immediately after signup
       // The user will need to verify their email first
-      return result
     } catch (error) {
       console.error("Sign up error:", error)
       throw error

@@ -51,23 +51,48 @@ export class AuthAPI {
     const { data: profile, error } = await supabase.from("users").select("*").eq("id", user.id).single()
 
     if (error || !profile) {
+      // 如果通过ID没找到，尝试通过邮箱查找（处理ID不匹配的情况）
+      const { data: profileByEmail, error: emailError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", user.email)
+        .single()
+
+      if (!emailError && profileByEmail) {
+        // 通过邮箱找到了用户，更新最后登录时间
+        await supabase
+          .from("users")
+          .update({
+            last_login_at: new Date().toISOString(),
+            email_verified: user.email_confirmed_at ? true : false
+          })
+          .eq("id", profileByEmail.id)
+
+        console.log("通过邮箱找到用户资料，ID不匹配但继续使用:", {
+          authId: user.id,
+          dbId: profileByEmail.id,
+          email: user.email
+        })
+
+        return profileByEmail as User
+      }
       // 如果没有找到用户资料，尝试创建一个
       const newProfile: Omit<User, "created_at" | "updated_at"> = {
         id: user.id,
         email: user.email || "",
+        password_hash: "",
         name: user.user_metadata?.name || "User",
         role: "user",
         status: "active",
         email_verified: user.email_confirmed_at ? true : false,
-        last_login: new Date().toISOString(),
+        last_login_at: new Date().toISOString(),
         avatar_url: user.user_metadata?.avatar_url || null,
-        bio: null,
-        website: null,
-        location: null,
+        bio: undefined,
+        location: undefined,
         favorite_count: 0,
         tools_submitted: 0,
         tools_approved: 0,
-        reputation_score: 0,
+
       }
 
       // 尝试创建用户资料
@@ -93,6 +118,12 @@ export class AuthAPI {
 
       return createdProfile as User
     }
+
+    // 更新最后登录时间
+    await supabase
+      .from("users")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", user.id)
 
     return profile as User
   }

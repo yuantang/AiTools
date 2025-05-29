@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { AdminAPI } from "@/lib/api/admin"
 import { ToolsAPI } from "@/lib/api/tools"
 import type { Tool, User } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 
 export default function AdminDashboard() {
@@ -33,31 +34,74 @@ export default function AdminDashboard() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
-
-    if (userProfile && userProfile.role !== "admin") {
-      router.push("/")
-      return
-    }
-
-    const fetchData = async () => {
+    const checkAuthAndLoadData = async () => {
       try {
-        // 如果没有用户信息，直接跳转
-        if (!user) {
+        // 获取当前用户
+        const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
+
+        if (authError || !currentUser) {
+          console.log("No authenticated user, redirecting to login")
+          router.push("/login")
           return
         }
 
-        // 如果用户角色不是管理员，跳转到首页
-        if (userProfile && userProfile.role !== "admin") {
-          return
-        }
+        console.log("Current user:", currentUser.email)
 
-        // 如果还在加载用户信息，等待
-        if (!userProfile) {
-          return
+        // 直接从数据库检查用户角色
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', currentUser.email)
+          .single()
+
+        if (profileError || !profile) {
+          console.error("Error fetching user profile:", profileError)
+
+          // 如果是admin@aitools.com，尝试创建管理员记录
+          if (currentUser.email === 'admin@aitools.com') {
+            console.log("Creating admin profile for admin@aitools.com")
+
+            const { data: newProfile, error: createError } = await supabase
+              .from('users')
+              .insert({
+                id: currentUser.id,
+                email: currentUser.email,
+                name: '系统管理员',
+                role: 'admin',
+                status: 'active',
+                email_verified: true,
+                created_at: currentUser.created_at,
+                updated_at: new Date().toISOString(),
+                last_login_at: new Date().toISOString(),
+                avatar_url: null,
+                bio: null,
+                location: null,
+                favorite_count: 0,
+                tools_submitted: 0,
+                tools_approved: 0
+              })
+              .select()
+              .single()
+
+            if (createError) {
+              console.error("Failed to create admin profile:", createError)
+              router.push("/")
+              return
+            }
+
+            console.log("Admin profile created successfully")
+          } else {
+            router.push("/")
+            return
+          }
+        } else {
+          console.log("User profile found:", profile.email, "Role:", profile.role)
+
+          if (profile.role !== "admin") {
+            console.log("User is not admin, redirecting")
+            router.push("/")
+            return
+          }
         }
 
         // 使用模拟数据替代API调用，避免加载问题
@@ -85,11 +129,8 @@ export default function AdminDashboard() {
       }
     }
 
-    // 只有当认证状态确定时才执行
-    if (!loading) {
-      fetchData()
-    }
-  }, [user, userProfile, loading, router])
+    checkAuthAndLoadData()
+  }, [router])
 
   // 如果认证还在加载中
   if (loading) {

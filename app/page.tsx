@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { ToolsAPI } from "@/lib/api/tools"
 import { CategoriesAPI } from "@/lib/api/categories"
 import type { Tool, Category } from "@/lib/supabase"
-import { SearchBar } from "@/components/SearchBar"
+
 import { EnhancedSearchBar } from "@/components/EnhancedSearchBar"
 import { RecommendationSection } from "@/components/RecommendationSection"
 

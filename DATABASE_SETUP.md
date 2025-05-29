@@ -34,7 +34,8 @@
    - 点击 "New query"
 
 4. **执行数据库迁移**
-   - 复制 `database/simple-search-migration.sql` 文件的全部内容
+   - 复制 `database/safe-migration.sql` 文件的全部内容（推荐）
+   - 或者使用 `database/simple-search-migration.sql`（如果遇到问题）
    - 粘贴到 SQL Editor 中
    - 点击 "Run" 按钮执行
 
@@ -125,6 +126,11 @@ A: 这是正常的，脚本使用 CREATE TABLE IF NOT EXISTS，重复执行是�
 A: 确保基础表（users, tools, categories）已存在且有数据
 ```
 
+**Q: ON CONFLICT 错误 (42P10)**
+```
+A: 使用 database/safe-migration.sql 脚本，它避免了所有冲突问题
+```
+
 **Q: 索引创建失败**
 ```
 A: 某些索引可能已存在，这不影响功能，可以忽略
@@ -136,12 +142,12 @@ A: 某些索引可能已存在，这不影响功能，可以忽略
 
 ```sql
 -- 检查所有新表
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public' 
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
 AND table_name IN (
   'search_history',
-  'popular_searches', 
+  'popular_searches',
   'search_suggestions',
   'user_behaviors',
   'tool_similarities',
@@ -171,11 +177,11 @@ SELECT COUNT(*) as popular_count FROM popular_searches;
 
 ```sql
 -- 清理90天前的搜索历史
-DELETE FROM search_history 
+DELETE FROM search_history
 WHERE created_at < NOW() - INTERVAL '90 days';
 
 -- 清理过期的推荐
-DELETE FROM user_recommendations 
+DELETE FROM user_recommendations
 WHERE expires_at < NOW();
 
 -- 更新热门搜索统计
