@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Search, Filter, Plus, Edit, Trash2, Eye, Star, TrendingUp } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Search, Filter, Plus, Edit, Trash2, Eye, Star, TrendingUp, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,83 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useAdminTools } from "@/hooks/useAdminTools"
+import { useCategories } from "@/hooks/useCategories"
+import { Header } from "@/components/layout/Header"
 
-const tools = [
-  {
-    id: 1,
-    name: "ChatGPT",
-    description: "强大的对话式AI助手，支持文本生成、问答、编程等多种任务",
-    logo: "/placeholder.svg?height=40&width=40",
-    category: "AI写作",
-    status: "active",
-    featured: true,
-    verified: true,
-    rating: 4.8,
-    users: "100M+",
-    views: 125000,
-    favorites: 8900,
-    pricing: "免费试用",
-    submittedBy: "OpenAI",
-    createdAt: "2023-11-30",
-    updatedAt: "2024-01-15",
-  },
-  {
-    id: 2,
-    name: "Midjourney",
-    description: "顶级AI图像生成工具，创造令人惊艳的艺术作品和设计",
-    logo: "/placeholder.svg?height=40&width=40",
-    category: "图像生成",
-    status: "active",
-    featured: true,
-    verified: true,
-    rating: 4.9,
-    users: "20M+",
-    views: 98000,
-    favorites: 7200,
-    pricing: "订阅制",
-    submittedBy: "Midjourney Inc",
-    createdAt: "2022-07-12",
-    updatedAt: "2024-01-14",
-  },
-  {
-    id: 3,
-    name: "GitHub Copilot",
-    description: "AI编程助手，实时代码建议和自动补全",
-    logo: "/placeholder.svg?height=40&width=40",
-    category: "AI编程",
-    status: "active",
-    featured: false,
-    verified: true,
-    rating: 4.7,
-    users: "5M+",
-    views: 87000,
-    favorites: 6500,
-    pricing: "订阅制",
-    submittedBy: "GitHub",
-    createdAt: "2021-06-29",
-    updatedAt: "2024-01-13",
-  },
-  {
-    id: 4,
-    name: "AI写作助手Pro",
-    description: "专业的AI写作工具，支持多种文体创作",
-    logo: "/placeholder.svg?height=40&width=40",
-    category: "AI写作",
-    status: "pending",
-    featured: false,
-    verified: false,
-    rating: 0,
-    users: "0",
-    views: 0,
-    favorites: 0,
-    pricing: "免费试用",
-    submittedBy: "张小明",
-    createdAt: "2024-01-15",
-    updatedAt: "2024-01-15",
-  },
-]
-
-const categories = ["全部", "AI写作", "图像生成", "AI编程", "视频编辑", "音频处理", "办公助手"]
 const statuses = ["全部", "active", "pending", "rejected", "inactive"]
 
 export default function AdminToolsPage() {
@@ -96,19 +23,31 @@ export default function AdminToolsPage() {
   const [selectedStatus, setSelectedStatus] = useState("全部")
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false)
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false)
-  const [selectedTools, setSelectedTools] = useState<number[]>([])
+  const [selectedTools, setSelectedTools] = useState<string[]>([])
+  const [page, setPage] = useState(1)
 
-  const filteredTools = tools.filter((tool) => {
-    const matchesSearch =
-      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === "全部" || tool.category === selectedCategory
-    const matchesStatus = selectedStatus === "全部" || tool.status === selectedStatus
-    const matchesFeatured = !showFeaturedOnly || tool.featured
-    const matchesVerified = !showVerifiedOnly || tool.verified
+  // 获取分类数据
+  const { categories } = useCategories()
+  const categoryOptions = ["全部", ...(categories?.map(c => c.name) || [])]
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesFeatured && matchesVerified
+  // 获取工具数据
+  const {
+    data: toolsData,
+    loading,
+    error,
+    deleteTool,
+    batchOperation
+  } = useAdminTools({
+    page,
+    search: searchQuery || undefined,
+    category: selectedCategory !== "全部" ? selectedCategory : undefined,
+    status: selectedStatus !== "全部" ? selectedStatus : undefined,
+    featured: showFeaturedOnly || undefined,
+    verified: showVerifiedOnly || undefined,
   })
+
+  const tools = toolsData?.tools || []
+  const statistics = toolsData?.statistics || { total: 0, active: 0, pending: 0, featured: 0, verified: 0 }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -140,56 +79,52 @@ export default function AdminToolsPage() {
     }
   }
 
-  const handleSelectTool = (toolId: number) => {
+  const handleSelectTool = (toolId: string) => {
     setSelectedTools((prev) => (prev.includes(toolId) ? prev.filter((id) => id !== toolId) : [...prev, toolId]))
   }
 
   const handleSelectAll = () => {
-    if (selectedTools.length === filteredTools.length) {
+    if (selectedTools.length === tools.length) {
       setSelectedTools([])
     } else {
-      setSelectedTools(filteredTools.map((tool) => tool.id))
+      setSelectedTools(tools.map((tool) => tool.id))
+    }
+  }
+
+  const handleDelete = async (toolId: string) => {
+    if (confirm("确定要删除这个工具吗？")) {
+      try {
+        await deleteTool(toolId)
+        setSelectedTools(prev => prev.filter(id => id !== toolId))
+      } catch (error) {
+        // 错误已在hook中处理
+      }
+    }
+  }
+
+  const handleBatchOperation = async (action: string) => {
+    if (selectedTools.length === 0) return
+
+    const actionNames: Record<string, string> = {
+      publish: '发布',
+      unpublish: '下线',
+      delete: '删除'
+    }
+
+    const actionName = actionNames[action] || action
+    if (confirm(`确定要${actionName}选中的 ${selectedTools.length} 个工具吗？`)) {
+      try {
+        await batchOperation(action, selectedTools)
+        setSelectedTools([])
+      } catch (error) {
+        // 错误已在hook中处理
+      }
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/" className="flex items-center space-x-2">
-                <span className="text-2xl font-bold text-blue-600">AI工具导航</span>
-              </Link>
-              <Badge className="bg-red-100 text-red-800">管理后台</Badge>
-            </div>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/admin" className="text-gray-600 hover:text-blue-600 transition-colors">
-                仪表板
-              </Link>
-              <Link href="/admin/tools" className="text-blue-600 font-medium">
-                工具管理
-              </Link>
-              <Link href="/admin/users" className="text-gray-600 hover:text-blue-600 transition-colors">
-                用户管理
-              </Link>
-              <Link href="/admin/categories" className="text-gray-600 hover:text-blue-600 transition-colors">
-                分类管理
-              </Link>
-            </nav>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" asChild>
-                <Link href="/">返回前台</Link>
-              </Button>
-              <Avatar>
-                <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                <AvatarFallback>管理员</AvatarFallback>
-              </Avatar>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header currentPage="admin" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
@@ -213,7 +148,7 @@ export default function AdminToolsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">总工具数</p>
-                  <p className="text-2xl font-bold text-gray-900">{tools.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-blue-600" />
@@ -226,9 +161,7 @@ export default function AdminToolsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">已发布</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tools.filter((t) => t.status === "active").length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.active}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                   <Eye className="h-6 w-6 text-green-600" />
@@ -241,9 +174,7 @@ export default function AdminToolsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">待审核</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tools.filter((t) => t.status === "pending").length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.pending}</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                   <Filter className="h-6 w-6 text-yellow-600" />
@@ -256,7 +187,7 @@ export default function AdminToolsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">精选工具</p>
-                  <p className="text-2xl font-bold text-gray-900">{tools.filter((t) => t.featured).length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.featured}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                   <Star className="h-6 w-6 text-purple-600" />
@@ -286,7 +217,7 @@ export default function AdminToolsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categoryOptions.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -330,13 +261,13 @@ export default function AdminToolsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">已选择 {selectedTools.length} 个工具</span>
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={() => handleBatchOperation('publish')}>
                     批量发布
                   </Button>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={() => handleBatchOperation('unpublish')}>
                     批量下线
                   </Button>
-                  <Button size="sm" variant="destructive">
+                  <Button size="sm" variant="destructive" onClick={() => handleBatchOperation('delete')}>
                     批量删除
                   </Button>
                 </div>
@@ -348,15 +279,26 @@ export default function AdminToolsPage() {
         {/* Tools Table */}
         <Card>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedTools.length === filteredTools.length}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">加载中...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <div className="text-red-500 mb-2">加载失败</div>
+                <div className="text-gray-500 text-sm">{error}</div>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedTools.length === tools.length && tools.length > 0}
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
                   <TableHead>工具</TableHead>
                   <TableHead>分类</TableHead>
                   <TableHead>状态</TableHead>
@@ -366,81 +308,82 @@ export default function AdminToolsPage() {
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {filteredTools.map((tool) => (
-                  <TableRow key={tool.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedTools.includes(tool.id)}
-                        onCheckedChange={() => handleSelectTool(tool.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={tool.logo || "/placeholder.svg"}
-                          alt={tool.name}
-                          className="w-10 h-10 rounded-lg object-cover"
+                <TableBody>
+                  {tools.map((tool) => (
+                    <TableRow key={tool.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedTools.includes(tool.id)}
+                          onCheckedChange={() => handleSelectTool(tool.id)}
                         />
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <p className="font-medium text-gray-900">{tool.name}</p>
-                            {tool.featured && <Badge className="bg-yellow-100 text-yellow-800 text-xs">精选</Badge>}
-                            {tool.verified && <Badge className="bg-green-100 text-green-800 text-xs">认证</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <img
+                            src={tool.logo || "/placeholder.svg"}
+                            alt={tool.name}
+                            className="w-10 h-10 rounded-lg object-cover"
+                          />
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <p className="font-medium text-gray-900">{tool.name}</p>
+                              {tool.featured && <Badge className="bg-yellow-100 text-yellow-800 text-xs">精选</Badge>}
+                              {tool.verified && <Badge className="bg-green-100 text-green-800 text-xs">认证</Badge>}
+                            </div>
+                            <p className="text-sm text-gray-500 line-clamp-1">{tool.description}</p>
                           </div>
-                          <p className="text-sm text-gray-500 line-clamp-1">{tool.description}</p>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{tool.category}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(tool.status)}>{getStatusText(tool.status)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="flex items-center space-x-1">
-                          <Eye className="h-3 w-3" />
-                          <span>{tool.views.toLocaleString()}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{tool.categories?.name || '未分类'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(tool.status)}>{getStatusText(tool.status)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div className="flex items-center space-x-1">
+                            <Eye className="h-3 w-3" />
+                            <span>{tool.views?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-3 w-3" />
+                            <span>{tool.rating || "N/A"}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <Star className="h-3 w-3" />
-                          <span>{tool.rating || "N/A"}</span>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-gray-900">{tool.users?.name || tool.users?.email || '未知'}</p>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-gray-500">{new Date(tool.updated_at).toLocaleDateString()}</p>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/tools/${tool.id}`} target="_blank">
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/admin/tools/${tool.id}/edit`}>
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDelete(tool.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm text-gray-900">{tool.submittedBy}</p>
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm text-gray-500">{tool.updatedAt}</p>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/tools/${tool.id}`} target="_blank">
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/admin/tools/${tool.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 
-        {filteredTools.length === 0 && (
+        {!loading && !error && tools.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4">
               <Search className="h-12 w-12 mx-auto" />
