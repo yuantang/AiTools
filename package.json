@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "health-check": "node scripts/check-project-health.js"
+    "health-check": "node scripts/check-project-health.js",
+    "deploy-setup": "bash scripts/deploy-setup.sh",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
