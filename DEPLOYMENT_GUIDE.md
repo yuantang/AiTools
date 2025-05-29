@@ -19,7 +19,7 @@
    - 选择 "New repository"
 
 2. **配置仓库**
-   - **Repository name**: `ai-tools-navigator` (或您喜欢的名称)
+   - **Repository name**: `AiTools` (或您喜欢的名称)
    - **Description**: `🤖 AI工具导航 - 智能搜索与推荐平台`
    - **Visibility**: Public (推荐) 或 Private
    - **不要**勾选 "Add a README file"、"Add .gitignore"、"Choose a license"
@@ -31,7 +31,7 @@
 
 ```bash
 # 添加远程仓库 (替换为您的GitHub用户名和仓库名)
-git remote add origin https://github.com/YOUR_USERNAME/ai-tools-navigator.git
+git remote add origin https://github.com/YOUR_USERNAME/AiTools.git
 
 # 推送代码到GitHub
 git branch -M main
@@ -40,7 +40,7 @@ git push -u origin main
 
 **示例**：
 ```bash
-git remote add origin https://github.com/johndoe/ai-tools-navigator.git
+git remote add origin https://github.com/yuantang/AiTools.git
 git branch -M main
 git push -u origin main
 ```
@@ -192,13 +192,13 @@ git push -u origin main
 - 运行项目健康检查：访问 `/api/health`
 
 ### Q: 如何更新部署？
-**A**: 
+**A**:
 1. 在本地修改代码
 2. 提交并推送到GitHub：`git add . && git commit -m "更新说明" && git push`
 3. Vercel会自动重新部署
 
 ### Q: 如何回滚到之前的版本？
-**A**: 
+**A**:
 1. 在Vercel Dashboard中找到项目
 2. 进入 "Deployments" 页面
 3. 找到要回滚的版本，点击 "Promote to Production"

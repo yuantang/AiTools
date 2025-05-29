@@ -2,7 +2,7 @@
 
 一个现代化的AI工具发现平台，集成了智能搜索、个性化推荐和用户行为分析功能。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/ai-tools-navigator)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yuantang/AiTools)
 
 ## ✨ 功能特性
 
@@ -60,8 +60,8 @@
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/yourusername/ai-tools-navigator.git
-   cd ai-tools-navigator
+   git clone https://github.com/yuantang/AiTools.git
+   cd AiTools
    ```
 
 2. **安装依赖**
