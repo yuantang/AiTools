@@ -19,7 +19,7 @@ export async function GET(
       .select(`
         *,
         categories(name),
-        users(name, email)
+        users!tools_submitted_by_fkey(name, email)
       `)
       .eq('id', params.id)
       .single()
@@ -49,7 +49,7 @@ export async function PUT(
   try {
     const supabase = createClient()
     const body = await request.json()
-    
+
     // 更新工具
     const { data: tool, error } = await supabase
       .from('tools')
@@ -85,7 +85,7 @@ export async function DELETE(
 
   try {
     const supabase = createClient()
-    
+
     // 删除工具
     const { error } = await supabase
       .from('tools')
