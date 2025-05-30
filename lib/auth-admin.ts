@@ -1,18 +1,18 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClientWithAuth } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
 
 export async function verifyAdminAuth(request: NextRequest) {
   try {
-    const supabase = createClient()
-    
+    const supabase = createClientWithAuth()
+
     // 获取认证用户
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: '未登录或认证失败',
-        status: 401 
+        status: 401
       }
     }
 
@@ -24,42 +24,42 @@ export async function verifyAdminAuth(request: NextRequest) {
       .single()
 
     if (profileError || !userProfile) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: '用户资料不存在',
-        status: 403 
+        status: 403
       }
     }
 
     // 验证管理员权限
     if (userProfile.role !== 'admin') {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: '权限不足，需要管理员权限',
-        status: 403 
+        status: 403
       }
     }
 
     // 验证账户状态
     if (userProfile.status !== 'active') {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: '账户已被禁用',
-        status: 403 
+        status: 403
       }
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       user: userProfile,
       authUser: user
     }
   } catch (error) {
     console.error('Admin auth verification error:', error)
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: '服务器内部错误',
-      status: 500 
+      status: 500
     }
   }
 }
