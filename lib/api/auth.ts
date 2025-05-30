@@ -68,11 +68,7 @@ export class AuthAPI {
           })
           .eq("id", profileByEmail.id)
 
-        console.log("通过邮箱找到用户资料，ID不匹配但继续使用:", {
-          authId: user.id,
-          dbId: profileByEmail.id,
-          email: user.email
-        })
+        // ID不匹配但通过邮箱找到用户，继续使用
 
         return profileByEmail as User
       }

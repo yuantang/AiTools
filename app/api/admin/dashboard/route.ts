@@ -41,8 +41,7 @@ export async function GET(request: NextRequest) {
         .from('tools')
         .select(`
           *,
-          categories(name),
-          users!tools_submitted_by_fkey(name, email)
+          categories(name)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -70,17 +69,32 @@ export async function GET(request: NextRequest) {
     // 检查错误
     if (toolsResult.error) {
       console.error('Tools query error:', toolsResult.error)
-      return createErrorResponse('获取工具统计失败')
+      return createErrorResponse('获取工具统计失败', 500)
     }
 
     if (usersResult.error) {
       console.error('Users query error:', usersResult.error)
-      return createErrorResponse('获取用户统计失败')
+      return createErrorResponse('获取用户统计失败', 500)
     }
 
     if (categoriesResult.error) {
       console.error('Categories query error:', categoriesResult.error)
-      return createErrorResponse('获取分类统计失败')
+      return createErrorResponse('获取分类统计失败', 500)
+    }
+
+    if (pendingToolsResult.error) {
+      console.error('Pending tools query error:', pendingToolsResult.error)
+      // 不阻止整个请求，只是记录错误
+    }
+
+    if (topToolsResult.error) {
+      console.error('Top tools query error:', topToolsResult.error)
+      // 不阻止整个请求，只是记录错误
+    }
+
+    if (recentUsersResult.error) {
+      console.error('Recent users query error:', recentUsersResult.error)
+      // 不阻止整个请求，只是记录错误
     }
 
     // 计算工具统计
