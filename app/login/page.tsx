@@ -37,38 +37,38 @@ export default function LoginPage() {
     setError("")
 
     try {
+      // 使用服务端API登录
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        setError(result.error || '登录失败')
+        return
+      }
+
+      // 登录成功，同时更新客户端状态
       await signIn(formData.email, formData.password)
 
-      // 等待用户信息加载完成
-      setTimeout(async () => {
-        try {
-          // 获取用户信息
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            // 查询用户角色
-            const { data: profile } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', user.id)
-              .single()
-
-            // 根据角色跳转
-            if (profile?.role === 'admin') {
-              router.push("/admin")
-            } else {
-              router.push("/")
-            }
-          } else {
-            router.push("/")
-          }
-        } catch (err) {
-          console.error("Error checking user role:", err)
-          router.push("/")
-        }
-      }, 1000)
+      // 根据角色跳转
+      if (result.user.role === 'admin') {
+        router.push("/admin")
+      } else {
+        router.push("/")
+      }
 
     } catch (error) {
-      setError(error instanceof Error ? error.message : "登录失败，请检查邮箱和密码")
+      console.error('Login error:', error)
+      setError("登录失败，请检查网络连接")
     } finally {
       setIsLoading(false)
     }

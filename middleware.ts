@@ -55,30 +55,7 @@ export async function middleware(request: NextRequest) {
   )
 
   // 刷新会话
-  const { data: { user }, error } = await supabase.auth.getUser()
-
-  // 如果访问管理页面但未登录，重定向到登录页
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-    
-    // 检查是否是管理员
-    try {
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('role, status')
-        .eq('email', user.email)
-        .single()
-      
-      if (!userProfile || userProfile.role !== 'admin' || userProfile.status !== 'active') {
-        return NextResponse.redirect(new URL('/login?error=unauthorized', request.url))
-      }
-    } catch (error) {
-      console.error('Error checking admin status:', error)
-      return NextResponse.redirect(new URL('/login?error=server_error', request.url))
-    }
-  }
+  await supabase.auth.getUser()
 
   return response
 }
