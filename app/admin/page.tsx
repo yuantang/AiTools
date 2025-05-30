@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { BarChart3, Users, Settings, Database, FileText, Eye, Plus, Download, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,195 +9,76 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth } from "@/hooks/useAuth"
-import { AdminAPI } from "@/lib/api/admin"
-import { ToolsAPI } from "@/lib/api/tools"
-import type { Tool, User } from "@/lib/supabase"
-import { supabase } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
+import { useAdminDashboard } from "@/hooks/useAdminDashboard"
 
 export default function AdminDashboard() {
-  const { user, userProfile } = useAuth()
   const [timeRange, setTimeRange] = useState("7d")
-  const [stats, setStats] = useState({
+  const { 
+    data: dashboardData, 
+    loading, 
+    error,
+    approveTool,
+    rejectTool 
+  } = useAdminDashboard()
+
+  const stats = dashboardData?.stats || {
     totalTools: 0,
     activeTools: 0,
     pendingTools: 0,
     totalUsers: 0,
     activeUsers: 0,
     totalCategories: 0,
-  })
-  const [pendingSubmissions, setPendingSubmissions] = useState<(Tool & { submitter: User })[]>([])
-  const [topTools, setTopTools] = useState<Tool[]>([])
-  const [recentUsers, setRecentUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    const checkAuthAndLoadData = async () => {
-      try {
-        // 获取当前用户
-        const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !currentUser) {
-          console.log("No authenticated user, redirecting to login")
-          router.push("/login")
-          return
-        }
-
-        console.log("Current user:", currentUser.email)
-
-        // 直接从数据库检查用户角色
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', currentUser.email)
-          .single()
-
-        if (profileError || !profile) {
-          console.error("Error fetching user profile:", profileError)
-
-          // 如果是admin@aitools.com，尝试创建管理员记录
-          if (currentUser.email === 'admin@aitools.com') {
-            console.log("Creating admin profile for admin@aitools.com")
-
-            const { data: newProfile, error: createError } = await supabase
-              .from('users')
-              .insert({
-                id: currentUser.id,
-                email: currentUser.email,
-                name: '系统管理员',
-                role: 'admin',
-                status: 'active',
-                email_verified: true,
-                created_at: currentUser.created_at,
-                updated_at: new Date().toISOString(),
-                last_login_at: new Date().toISOString(),
-                avatar_url: null,
-                bio: null,
-                location: null,
-                favorite_count: 0,
-                tools_submitted: 0,
-                tools_approved: 0
-              })
-              .select()
-              .single()
-
-            if (createError) {
-              console.error("Failed to create admin profile:", createError)
-              router.push("/")
-              return
-            }
-
-            console.log("Admin profile created successfully")
-          } else {
-            router.push("/")
-            return
-          }
-        } else {
-          console.log("User profile found:", profile.email, "Role:", profile.role)
-
-          if (profile.role !== "admin") {
-            console.log("User is not admin, redirecting")
-            router.push("/")
-            return
-          }
-        }
-
-        // 使用模拟数据替代API调用，避免加载问题
-        const mockStats = {
-          totalTools: 156,
-          activeTools: 142,
-          pendingTools: 14,
-          totalUsers: 1248,
-          activeUsers: 892,
-          totalCategories: 8,
-        }
-
-        const mockPendingSubmissions = []
-        const mockTopTools = []
-        const mockRecentUsers = []
-
-        setStats(mockStats)
-        setPendingSubmissions(mockPendingSubmissions)
-        setTopTools(mockTopTools)
-        setRecentUsers(mockRecentUsers)
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    checkAuthAndLoadData()
-  }, [router])
-
-  // 如果认证还在加载中
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">正在验证权限...</p>
-        </div>
-      </div>
-    )
   }
 
-  // 如果没有登录
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">需要登录</h1>
-          <p className="text-gray-600 mb-6">请先登录后再访问管理后台</p>
-          <Button asChild>
-            <Link href="/login">前往登录</Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  // 如果不是管理员
-  if (userProfile && userProfile.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">权限不足</h1>
-          <p className="text-gray-600 mb-6">您没有访问管理后台的权限</p>
-          <Button asChild>
-            <Link href="/">返回首页</Link>
-          </Button>
-        </div>
-      </div>
-    )
+  const pendingSubmissions = dashboardData?.pendingSubmissions || []
+  const topTools = dashboardData?.topTools || []
+  const recentUsers = dashboardData?.recentUsers || []
+  const systemStatus = dashboardData?.systemStatus || {
+    database: 'healthy',
+    api: 'healthy',
+    storage: 23,
+    uptime: '99.9%'
   }
 
   const handleApprove = async (toolId: string) => {
-    if (!user) return
-
     try {
-      await ToolsAPI.reviewTool(toolId, "approve", "审核通过", user.id)
-      // 重新获取待审核列表
-      const pendingData = await AdminAPI.getPendingSubmissions()
-      setPendingSubmissions(pendingData)
+      await approveTool(toolId)
     } catch (error) {
       console.error("Failed to approve tool:", error)
     }
   }
 
   const handleReject = async (toolId: string) => {
-    if (!user) return
-
     try {
-      await ToolsAPI.reviewTool(toolId, "reject", "不符合收录标准", user.id)
-      // 重新获取待审核列表
-      const pendingData = await AdminAPI.getPendingSubmissions()
-      setPendingSubmissions(pendingData)
+      await rejectTool(toolId)
     } catch (error) {
       console.error("Failed to reject tool:", error)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在加载仪表盘数据...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -234,8 +115,8 @@ export default function AdminDashboard() {
                 <Link href="/">返回前台</Link>
               </Button>
               <Avatar>
-                <AvatarImage src={userProfile?.avatar_url || "/placeholder.svg?height=32&width=32"} />
-                <AvatarFallback>{userProfile?.name?.[0] || "A"}</AvatarFallback>
+                <AvatarImage src="/placeholder.svg?height=32&width=32" />
+                <AvatarFallback>A</AvatarFallback>
               </Avatar>
             </div>
           </div>
@@ -247,7 +128,7 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">管理仪表板</h1>
-            <p className="text-gray-600">欢迎回来，{userProfile?.name}</p>
+            <p className="text-gray-600">欢迎回来，系统管理员</p>
           </div>
           <div className="flex items-center space-x-3">
             <Select value={timeRange} onValueChange={setTimeRange}>
@@ -382,8 +263,8 @@ export default function AdminDashboard() {
                         </div>
                         <p className="text-sm text-gray-600 mb-2 line-clamp-2">{submission.description}</p>
                         <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <span>提交者：{submission.submitter.name}</span>
-                          <span>分类：{submission.category?.name}</span>
+                          <span>提交者：{submission.users?.name || submission.submitter?.name || '未知'}</span>
+                          <span>分类：{submission.categories?.name || submission.category?.name || '未分类'}</span>
                           <span>时间：{new Date(submission.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
@@ -409,50 +290,6 @@ export default function AdminDashboard() {
                   {pendingSubmissions.length === 0 && (
                     <div className="text-center py-8 text-gray-500">暂无待审核的工具</div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Top Tools */}
-            <Card>
-              <CardHeader>
-                <CardTitle>热门工具</CardTitle>
-                <CardDescription>按访问量排序的热门工具</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {topTools.map((tool, index) => (
-                    <div key={tool.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-bold text-blue-600">
-                          {index + 1}
-                        </div>
-                        <img
-                          src={tool.logo_url || "/placeholder.svg?height=40&width=40"}
-                          alt={tool.name}
-                          className="w-10 h-10 rounded-lg object-cover"
-                        />
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{tool.name}</h3>
-                          <p className="text-sm text-gray-500">{tool.category?.name}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-6 text-sm">
-                        <div className="text-center">
-                          <div className="font-semibold">{tool.view_count.toLocaleString()}</div>
-                          <div className="text-gray-500">访问</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{tool.favorite_count.toLocaleString()}</div>
-                          <div className="text-gray-500">收藏</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{tool.rating}</div>
-                          <div className="text-gray-500">评分</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -493,34 +330,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Recent Users */}
-            <Card>
-              <CardHeader>
-                <CardTitle>新注册用户</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
-                          <AvatarFallback>{user.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                          <p className="text-xs text-gray-500">{new Date(user.created_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <Badge variant={user.status === "active" ? "default" : "secondary"} className="text-xs">
-                        {user.status === "active" ? "活跃" : "非活跃"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* System Status */}
             <Card>
               <CardHeader>
@@ -530,23 +339,27 @@ export default function AdminDashboard() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>数据库连接</span>
-                    <span className="text-green-600">正常</span>
+                    <span className={systemStatus.database === 'healthy' ? "text-green-600" : "text-red-600"}>
+                      {systemStatus.database === 'healthy' ? '正常' : '异常'}
+                    </span>
                   </div>
-                  <Progress value={100} className="h-2" />
+                  <Progress value={systemStatus.database === 'healthy' ? 100 : 0} className="h-2" />
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>API响应</span>
-                    <span className="text-green-600">正常</span>
+                    <span className={systemStatus.api === 'healthy' ? "text-green-600" : "text-red-600"}>
+                      {systemStatus.api === 'healthy' ? '正常' : '异常'}
+                    </span>
                   </div>
-                  <Progress value={95} className="h-2" />
+                  <Progress value={systemStatus.api === 'healthy' ? 95 : 0} className="h-2" />
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>存储空间</span>
-                    <span>23%</span>
+                    <span>{systemStatus.storage}%</span>
                   </div>
-                  <Progress value={23} className="h-2" />
+                  <Progress value={systemStatus.storage} className="h-2" />
                 </div>
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between text-sm">
