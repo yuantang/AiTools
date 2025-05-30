@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient()
     const { searchParams } = new URL(request.url)
-    
+
     // 获取查询参数
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || ''
     const featured = searchParams.get('featured') === 'true'
     const verified = searchParams.get('verified') === 'true'
-    
+
     const offset = (page - 1) * limit
 
     // 构建查询
@@ -30,26 +30,26 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         categories(name),
-        users(name, email)
+        users!tools_submitted_by_fkey(name, email)
       `)
 
     // 添加搜索条件
     if (search) {
       query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
     }
-    
+
     if (category) {
       query = query.eq('category_id', category)
     }
-    
+
     if (status) {
       query = query.eq('status', status)
     }
-    
+
     if (featured) {
       query = query.eq('featured', true)
     }
-    
+
     if (verified) {
       query = query.eq('verified', true)
     }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient()
     const body = await request.json()
-    
+
     // 验证必填字段
     const { name, description, url, category_id } = body
     if (!name || !description || !url || !category_id) {
