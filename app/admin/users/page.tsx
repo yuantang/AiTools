@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, UserPlus, Edit, Trash2, Mail, Shield, Ban } from "lucide-react"
+import { Search, UserPlus, Edit, Trash2, Mail, Shield, Ban, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,84 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-const users = [
-  {
-    id: 1,
-    name: "张小明",
-    email: "zhang@example.com",
-    avatar: "/placeholder.svg?height=32&width=32",
-    role: "user",
-    status: "active",
-    verified: true,
-    joinedAt: "2024-01-15",
-    lastLoginAt: "2024-01-20",
-    toolsSubmitted: 3,
-    toolsApproved: 2,
-    favoriteCount: 15,
-    location: "北京",
-  },
-  {
-    id: 2,
-    name: "李小红",
-    email: "li@example.com",
-    avatar: "/placeholder.svg?height=32&width=32",
-    role: "moderator",
-    status: "active",
-    verified: true,
-    joinedAt: "2024-01-14",
-    lastLoginAt: "2024-01-20",
-    toolsSubmitted: 1,
-    toolsApproved: 1,
-    favoriteCount: 8,
-    location: "上海",
-  },
-  {
-    id: 3,
-    name: "王小华",
-    email: "wang@example.com",
-    avatar: "/placeholder.svg?height=32&width=32",
-    role: "user",
-    status: "inactive",
-    verified: false,
-    joinedAt: "2024-01-13",
-    lastLoginAt: "2024-01-18",
-    toolsSubmitted: 0,
-    toolsApproved: 0,
-    favoriteCount: 3,
-    location: "广州",
-  },
-  {
-    id: 4,
-    name: "赵小丽",
-    email: "zhao@example.com",
-    avatar: "/placeholder.svg?height=32&width=32",
-    role: "admin",
-    status: "active",
-    verified: true,
-    joinedAt: "2023-12-01",
-    lastLoginAt: "2024-01-20",
-    toolsSubmitted: 5,
-    toolsApproved: 5,
-    favoriteCount: 25,
-    location: "深圳",
-  },
-  {
-    id: 5,
-    name: "陈小军",
-    email: "chen@example.com",
-    avatar: "/placeholder.svg?height=32&width=32",
-    role: "user",
-    status: "banned",
-    verified: false,
-    joinedAt: "2024-01-10",
-    lastLoginAt: "2024-01-16",
-    toolsSubmitted: 2,
-    toolsApproved: 0,
-    favoriteCount: 1,
-    location: "杭州",
-  },
-]
+import { useAdminUsers } from "@/hooks/useAdminUsers"
+import { Header } from "@/components/layout/Header"
 
 const roles = ["全部", "user", "moderator", "admin"]
 const statuses = ["全部", "active", "inactive", "banned"]
@@ -98,18 +22,34 @@ export default function AdminUsersPage() {
   const [selectedRole, setSelectedRole] = useState("全部")
   const [selectedStatus, setSelectedStatus] = useState("全部")
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false)
-  const [selectedUsers, setSelectedUsers] = useState<number[]>([])
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [page, setPage] = useState(1)
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesRole = selectedRole === "全部" || user.role === selectedRole
-    const matchesStatus = selectedStatus === "全部" || user.status === selectedStatus
-    const matchesVerified = !showVerifiedOnly || user.verified
-
-    return matchesSearch && matchesRole && matchesStatus && matchesVerified
+  // 获取用户数据
+  const {
+    data: usersData,
+    loading,
+    error,
+    deleteUser,
+    updateUser
+  } = useAdminUsers({
+    page,
+    search: searchQuery || undefined,
+    role: selectedRole !== "全部" ? selectedRole : undefined,
+    status: selectedStatus !== "全部" ? selectedStatus : undefined,
+    verified: showVerifiedOnly || undefined,
   })
+
+  const users = usersData?.users || []
+  const statistics = usersData?.statistics || {
+    total: 0,
+    active: 0,
+    inactive: 0,
+    banned: 0,
+    verified: 0,
+    admins: 0,
+    moderators: 0
+  }
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -163,56 +103,60 @@ export default function AdminUsersPage() {
     }
   }
 
-  const handleSelectUser = (userId: number) => {
+  const handleSelectUser = (userId: string) => {
     setSelectedUsers((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
   }
 
   const handleSelectAll = () => {
-    if (selectedUsers.length === filteredUsers.length) {
+    if (selectedUsers.length === users.length) {
       setSelectedUsers([])
     } else {
-      setSelectedUsers(filteredUsers.map((user) => user.id))
+      setSelectedUsers(users.map((user) => user.id))
     }
+  }
+
+  const handleDelete = async (userId: string) => {
+    if (confirm("确定要删除这个用户吗？")) {
+      try {
+        await deleteUser(userId)
+        setSelectedUsers(prev => prev.filter(id => id !== userId))
+      } catch (error) {
+        // 错误已在hook中处理
+      }
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header currentPage="admin" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">加载中...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header currentPage="admin" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <div className="text-red-500 mb-2">加载失败</div>
+            <div className="text-gray-500 text-sm">{error}</div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/" className="flex items-center space-x-2">
-                <span className="text-2xl font-bold text-blue-600">AI工具导航</span>
-              </Link>
-              <Badge className="bg-red-100 text-red-800">管理后台</Badge>
-            </div>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/admin" className="text-gray-600 hover:text-blue-600 transition-colors">
-                仪表板
-              </Link>
-              <Link href="/admin/tools" className="text-gray-600 hover:text-blue-600 transition-colors">
-                工具管理
-              </Link>
-              <Link href="/admin/users" className="text-blue-600 font-medium">
-                用户管理
-              </Link>
-              <Link href="/admin/categories" className="text-gray-600 hover:text-blue-600 transition-colors">
-                分类管理
-              </Link>
-            </nav>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" asChild>
-                <Link href="/">返回前台</Link>
-              </Button>
-              <Avatar>
-                <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                <AvatarFallback>管理员</AvatarFallback>
-              </Avatar>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header currentPage="admin" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
@@ -236,7 +180,7 @@ export default function AdminUsersPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">总用户数</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <UserPlus className="h-6 w-6 text-blue-600" />
@@ -249,9 +193,7 @@ export default function AdminUsersPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">活跃用户</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {users.filter((u) => u.status === "active").length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.active}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                   <Shield className="h-6 w-6 text-green-600" />
@@ -264,7 +206,7 @@ export default function AdminUsersPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">已认证</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.filter((u) => u.verified).length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.verified}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                   <Mail className="h-6 w-6 text-purple-600" />
@@ -277,9 +219,7 @@ export default function AdminUsersPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">已封禁</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {users.filter((u) => u.status === "banned").length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.banned}</p>
                 </div>
                 <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
                   <Ban className="h-6 w-6 text-red-600" />
@@ -368,7 +308,7 @@ export default function AdminUsersPage() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedUsers.length === filteredUsers.length}
+                      checked={selectedUsers.length === users.length && users.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -382,7 +322,7 @@ export default function AdminUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <Checkbox
@@ -399,10 +339,10 @@ export default function AdminUsersPage() {
                         <div>
                           <div className="flex items-center space-x-2">
                             <p className="font-medium text-gray-900">{user.name}</p>
-                            {user.verified && <Badge className="bg-green-100 text-green-800 text-xs">已认证</Badge>}
+                            {user.email_verified && <Badge className="bg-green-100 text-green-800 text-xs">已认证</Badge>}
                           </div>
                           <p className="text-sm text-gray-500">{user.email}</p>
-                          <p className="text-xs text-gray-400">{user.location}</p>
+                          <p className="text-xs text-gray-400">{user.location || '未设置'}</p>
                         </div>
                       </div>
                     </TableCell>
@@ -414,16 +354,15 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>提交: {user.toolsSubmitted}</div>
-                        <div>通过: {user.toolsApproved}</div>
-                        <div>收藏: {user.favoriteCount}</div>
+                        <div>提交: {user.tools?.[0]?.count || 0}</div>
+                        <div>收藏: {user.favorites?.[0]?.count || 0}</div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm text-gray-500">{user.joinedAt}</p>
+                      <p className="text-sm text-gray-500">{new Date(user.created_at).toLocaleDateString()}</p>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm text-gray-500">{user.lastLoginAt}</p>
+                      <p className="text-sm text-gray-500">{user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : '从未登录'}</p>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
@@ -437,7 +376,7 @@ export default function AdminUsersPage() {
                             <Edit className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => handleDelete(user.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -449,7 +388,7 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
 
-        {filteredUsers.length === 0 && (
+        {!loading && !error && users.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4">
               <Search className="h-12 w-12 mx-auto" />
