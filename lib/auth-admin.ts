@@ -16,19 +16,30 @@ export async function verifyAdminAuth(request: NextRequest) {
       }
     }
 
-    // 查询用户资料
-    const { data: userProfile, error: profileError } = await supabase
+    // 查询用户资料 - 先按ID查找，如果找不到再按邮箱查找
+    let { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('*')
-      .eq('email', user.email)
+      .eq('id', user.id)
       .single()
 
+    // 如果按ID找不到，尝试按邮箱查找
     if (profileError || !userProfile) {
-      return {
-        success: false,
-        error: '用户资料不存在',
-        status: 403
+      const { data: profileByEmail, error: emailError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', user.email)
+        .single()
+
+      if (emailError || !profileByEmail) {
+        return {
+          success: false,
+          error: '用户资料不存在',
+          status: 403
+        }
       }
+
+      userProfile = profileByEmail
     }
 
     // 验证管理员权限
