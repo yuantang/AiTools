@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BarChart3, Users, Settings, Database, FileText, Eye, Plus, Download, TrendingUp } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,16 +11,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAdminDashboard } from "@/hooks/useAdminDashboard"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function AdminDashboard() {
   const [timeRange, setTimeRange] = useState("7d")
-  const { 
-    data: dashboardData, 
-    loading, 
+  const router = useRouter()
+  const { user, userProfile, loading: authLoading } = useAuth()
+  const {
+    data: dashboardData,
+    loading,
     error,
     approveTool,
-    rejectTool 
+    rejectTool
   } = useAdminDashboard()
+
+  // 认证检查
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user || !userProfile) {
+        router.push('/login')
+        return
+      }
+
+      if (userProfile.role !== 'admin' || userProfile.status !== 'active') {
+        router.push('/login?error=unauthorized')
+        return
+      }
+    }
+  }, [user, userProfile, authLoading, router])
 
   const stats = dashboardData?.stats || {
     totalTools: 0,
@@ -54,6 +73,23 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Failed to reject tool:", error)
     }
+  }
+
+  // 如果正在认证检查，显示加载状态
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在验证身份...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 如果未登录或无权限，不显示内容（会被重定向）
+  if (!user || !userProfile || userProfile.role !== 'admin') {
+    return null
   }
 
   if (loading) {
