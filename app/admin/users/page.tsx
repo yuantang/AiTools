@@ -148,6 +148,11 @@ export default function AdminUsersPage() {
           <div className="text-center py-12">
             <div className="text-red-500 mb-2">加载失败</div>
             <div className="text-gray-500 text-sm">{error}</div>
+            <div className="mt-4">
+              <Button onClick={() => window.location.reload()}>
+                重新加载
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -354,8 +359,8 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>提交: {user.tools?.[0]?.count || 0}</div>
-                        <div>收藏: {user.favorites?.[0]?.count || 0}</div>
+                        <div>提交: 0</div>
+                        <div>收藏: 0</div>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -11,14 +11,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createClient()
-    
+
     // 获取分类及其工具数量
     const { data: categories, error } = await supabase
       .from('categories')
-      .select(`
-        *,
-        tools(count)
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -54,7 +51,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient()
     const body = await request.json()
-    
+
     // 验证必填字段
     const { name, slug, description } = body
     if (!name || !slug || !description) {

@@ -16,10 +16,7 @@ export async function GET(
     const supabase = createClient()
     const { data: category, error } = await supabase
       .from('categories')
-      .select(`
-        *,
-        tools(count)
-      `)
+      .select('*')
       .eq('id', params.id)
       .single()
 
@@ -48,7 +45,7 @@ export async function PUT(
   try {
     const supabase = createClient()
     const body = await request.json()
-    
+
     // 如果更新slug，检查是否已存在
     if (body.slug) {
       const { data: existingCategory } = await supabase
@@ -62,7 +59,7 @@ export async function PUT(
         return createErrorResponse('URL路径已存在')
       }
     }
-    
+
     // 更新分类
     const { data: category, error } = await supabase
       .from('categories')
@@ -98,7 +95,7 @@ export async function DELETE(
 
   try {
     const supabase = createClient()
-    
+
     // 检查是否有工具使用此分类
     const { data: tools, error: toolsError } = await supabase
       .from('tools')
@@ -114,7 +111,7 @@ export async function DELETE(
     if (tools && tools.length > 0) {
       return createErrorResponse('无法删除：该分类下还有工具')
     }
-    
+
     // 删除分类
     const { error } = await supabase
       .from('categories')

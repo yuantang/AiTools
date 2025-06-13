@@ -1,76 +1,68 @@
 "use client"
 
-import { useState } from "react"
-import { Save, Upload, Shield, Bell, Database, Globe } from "lucide-react"
-import Link from "next/link"
+import { Save, Upload, Shield, Bell, Database, Globe, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Header } from "@/components/layout/Header"
+import { useAdminSettings } from "@/hooks/useAdminSettings"
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    // 基本设置
-    siteName: "AI工具导航",
-    siteDescription: "发现和分享最好的AI工具",
-    siteUrl: "https://aitools.com",
-    adminEmail: "admin@aitools.com",
-    supportEmail: "support@aitools.com",
-
-    // 功能设置
-    enableUserRegistration: true,
-    enableToolSubmission: true,
-    enableComments: true,
-    enableRatings: true,
-    enableFavorites: true,
-    requireEmailVerification: true,
-
-    // 审核设置
-    autoApproveTools: false,
-    moderationLevel: "strict",
-    spamFilterEnabled: true,
-
-    // 通知设置
-    emailNotifications: true,
-    pushNotifications: false,
-    slackWebhook: "",
-
-    // SEO设置
-    metaTitle: "AI工具导航 - 发现最好的AI工具",
-    metaDescription: "收录全球最新最热门的AI产品，帮助您快速找到适合的AI工具",
-    metaKeywords: "AI工具,人工智能,机器学习,深度学习",
-
-    // 安全设置
-    enableTwoFactor: false,
-    sessionTimeout: 24,
-    maxLoginAttempts: 5,
-
-    // 备份设置
-    autoBackup: true,
-    backupFrequency: "daily",
-    backupRetention: 30,
-  })
-
-  const [isSaving, setIsSaving] = useState(false)
+  const {
+    settings,
+    loading,
+    error,
+    saving,
+    updateSettings,
+    updateSetting,
+  } = useAdminSettings()
 
   const handleSave = async () => {
-    setIsSaving(true)
-    // 模拟保存过程
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSaving(false)
-    // 显示成功消息
+    if (!settings) return
+
+    try {
+      await updateSettings(settings)
+    } catch (error) {
+      // 错误已在hook中处理
+    }
   }
 
-  const updateSetting = (key: string, value: any) => {
-    setSettings((prev) => ({ ...prev, [key]: value }))
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header currentPage="admin" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">加载中...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header currentPage="admin" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <div className="text-red-500 mb-2">加载失败</div>
+            <div className="text-gray-500 text-sm">{error}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!settings) {
+    return null
   }
 
   return (
@@ -84,9 +76,9 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold text-gray-900">系统设置</h1>
             <p className="text-gray-600">配置网站的各项功能和参数</p>
           </div>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? "保存中..." : "保存设置"}
+            {saving ? "保存中..." : "保存设置"}
           </Button>
         </div>
 

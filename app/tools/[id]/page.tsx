@@ -152,11 +152,17 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
   const [userRating, setUserRating] = useState(0)
   const [reviewText, setReviewText] = useState("")
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [userReview, setUserReview] = useState("")
+  const [newComment, setNewComment] = useState("")
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
 
   useEffect(() => {
     const fetchTool = async () => {
       try {
         const toolData = await ToolsAPI.getTool(params.id as string, user?.id)
+        console.log('Tool data loaded:', toolData)
+        console.log('Tool URL:', toolData.url)
         setTool(toolData)
         setIsFavorited(toolData.is_favorited || false)
 
@@ -181,8 +187,11 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
   }, [params.id, user])
 
   const toggleFavorite = async () => {
+    console.log('toggleFavorite clicked')
+    if (!tool) return
+
     try {
-      setTool((prev) => ({ ...prev, is_favorited: !prev.is_favorited }))
+      setTool((prev) => prev ? ({ ...prev, is_favorited: !prev.is_favorited }) : null)
       // TODO: Implement API call
     } catch (error) {
       console.error("Failed to toggle favorite:", error)
@@ -271,12 +280,25 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
               </Link>
             </nav>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" asChild>
-                <Link href="/login">登录</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/submit">提交工具</Link>
-              </Button>
+              {user ? (
+                <>
+                  <Button variant="outline" asChild>
+                    <Link href="/profile">个人中心</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/submit">提交工具</Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" asChild>
+                    <Link href="/login">登录</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/submit">提交工具</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -293,8 +315,8 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
             工具库
           </Link>
           <span>/</span>
-          <Link href={`/categories/${tool.category}`} className="hover:text-blue-600">
-            {tool.category}
+          <Link href={`/categories/${tool.category?.id || tool.category_id || ''}`} className="hover:text-blue-600">
+            {tool.category?.name || tool.category || '未分类'}
           </Link>
           <span>/</span>
           <span className="text-gray-900">{tool.name}</span>
@@ -317,14 +339,14 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                       <div>
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">{tool.name}</h1>
                         <div className="flex items-center space-x-4 mb-3">
-                          <Badge className="bg-blue-100 text-blue-800">{tool.category}</Badge>
+                          <Badge className="bg-blue-100 text-blue-800">{tool.category?.name || tool.category || '未分类'}</Badge>
                           {tool.featured && <Badge className="bg-yellow-100 text-yellow-800">精选推荐</Badge>}
                         </div>
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-1">
                             <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                             <span className="font-semibold">{tool.rating}</span>
-                            <span className="text-gray-500">({tool.totalRatings.toLocaleString()} 评价)</span>
+                            <span className="text-gray-500">({(tool.totalRatings || 0).toLocaleString()} 评价)</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4 text-gray-400" />
@@ -332,12 +354,13 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2" style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={toggleFavorite}
-                          className={tool.is_favorited ? "text-red-600" : ""}
+                          className={`cursor-pointer ${tool.is_favorited ? "text-red-600" : ""}`}
+                          style={{ pointerEvents: 'auto' }}
                         >
                           <Heart className={`h-4 w-4 mr-1 ${tool.is_favorited ? "fill-current" : ""}`} />
                           {tool.is_favorited ? "已收藏" : "收藏"}
@@ -345,12 +368,31 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigator.share?.({ title: tool.name, url: window.location.href })}
+                          onClick={() => {
+                            console.log('Share button clicked')
+                            if (navigator.share) {
+                              navigator.share({ title: tool.name, url: window.location.href })
+                            } else {
+                              alert('分享功能不支持，已复制链接到剪贴板')
+                              navigator.clipboard?.writeText(window.location.href)
+                            }
+                          }}
+                          className="cursor-pointer"
+                          style={{ pointerEvents: 'auto' }}
                         >
                           <Share2 className="h-4 w-4 mr-1" />
                           分享
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            console.log('Report button clicked')
+                            alert('举报功能开发中，感谢您的反馈！')
+                          }}
+                          className="cursor-pointer"
+                          style={{ pointerEvents: 'auto' }}
+                        >
                           <Flag className="h-4 w-4 mr-1" />
                           举报
                         </Button>
@@ -358,20 +400,45 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                     </div>
                     <p className="text-gray-600 text-lg leading-relaxed mb-4">{tool.description}</p>
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {tool.tags.map((tag, index) => (
+                      {(tool.tags || []).map((tag, index) => (
                         <Badge key={index} variant="outline">
                           {tag}
                         </Badge>
                       ))}
                     </div>
-                    <div className="flex space-x-3">
-                      <Button size="lg" asChild>
-                        <a href={tool.url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          访问官网
-                        </a>
+                    <div className="flex space-x-3" style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}>
+                      <Button
+                        size="lg"
+                        className="cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
+                        onClick={() => {
+                          const url = tool.website || tool.url
+                          console.log('访问官网 clicked, URL:', url)
+                          if (url) {
+                            window.open(url, '_blank', 'noopener,noreferrer')
+                          } else {
+                            alert('暂无官网链接')
+                          }
+                        }}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        访问官网
                       </Button>
-                      <Button size="lg" variant="outline">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
+                        onClick={() => {
+                          const url = tool.website || tool.url
+                          console.log('免费试用 clicked, URL:', url)
+                          if (url) {
+                            window.open(url, '_blank', 'noopener,noreferrer')
+                          } else {
+                            alert('暂无试用链接')
+                          }
+                        }}
+                      >
                         免费试用
                       </Button>
                     </div>
@@ -387,7 +454,7 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-4">
-                  {tool.screenshots.map((screenshot, index) => (
+                  {(tool.screenshots || []).map((screenshot, index) => (
                     <img
                       key={index}
                       src={screenshot || "/placeholder.svg"}
@@ -406,7 +473,7 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-4">
-                  {tool.features.map((feature, index) => (
+                  {(tool.features || []).map((feature, index) => (
                     <div key={index} className="flex items-center space-x-3">
                       <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                       <span className="text-gray-700">{feature}</span>
@@ -424,7 +491,7 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-3 gap-6">
-                  {tool.pricingPlans.map((plan, index) => (
+                  {(tool.pricingPlans || []).map((plan, index) => (
                     <div
                       key={index}
                       className={`border rounded-lg p-6 relative ${
@@ -449,7 +516,19 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                           </li>
                         ))}
                       </ul>
-                      <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
+                      <Button
+                        className="w-full"
+                        variant={plan.popular ? "default" : "outline"}
+                        onClick={() => {
+                          const url = tool.website || tool.url
+                          console.log('选择方案 clicked, URL:', url)
+                          if (url) {
+                            window.open(url, '_blank', 'noopener,noreferrer')
+                          } else {
+                            alert('暂无购买链接')
+                          }
+                        }}
+                      >
                         选择方案
                       </Button>
                     </div>
@@ -478,7 +557,7 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                         />
                       ))}
                     </div>
-                    <p className="text-gray-500">{tool.totalRatings.toLocaleString()} 条评价</p>
+                    <p className="text-gray-500">{(tool.totalRatings || 0).toLocaleString()} 条评价</p>
                   </div>
                   <div className="space-y-2">
                     {ratingDistribution.map((item) => (
@@ -538,7 +617,16 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                 </div>
 
                 <div className="text-center mt-6">
-                  <Button variant="outline">查看更多评价</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // 滚动到评价区域
+                      const reviewsSection = document.querySelector('[data-reviews-section]')
+                      reviewsSection?.scrollIntoView({ behavior: 'smooth' })
+                    }}
+                  >
+                    查看更多评价
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -557,20 +645,20 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">开发商</span>
-                  <span className="font-medium">{tool.details.developer}</span>
+                  <span className="font-medium">{tool.details?.developer || '未知'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">发布日期</span>
-                  <span className="font-medium">{tool.details.releaseDate}</span>
+                  <span className="font-medium">{tool.details?.releaseDate || '未知'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">最近更新</span>
-                  <span className="font-medium">{tool.details.lastUpdate}</span>
+                  <span className="font-medium">{tool.details?.lastUpdate || '未知'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">支持平台</span>
                   <div className="flex flex-wrap gap-1">
-                    {tool.details.platforms.map((platform, index) => (
+                    {(tool.details?.platforms || []).map((platform, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {platform}
                       </Badge>
@@ -579,11 +667,11 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">API支持</span>
-                  <span className="font-medium">{tool.details.apiAvailable ? "✅ 支持" : "❌ 不支持"}</span>
+                  <span className="font-medium">{tool.details?.apiAvailable ? "✅ 支持" : "❌ 不支持"}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">开源</span>
-                  <span className="font-medium">{tool.details.openSource ? "✅ 是" : "❌ 否"}</span>
+                  <span className="font-medium">{tool.details?.openSource ? "✅ 是" : "❌ 否"}</span>
                 </div>
               </CardContent>
             </Card>
@@ -595,7 +683,7 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {tool.details.languages.map((language, index) => (
+                  {(tool.details?.languages || []).map((language, index) => (
                     <Badge key={index} variant="outline">
                       {language}
                     </Badge>
@@ -617,17 +705,30 @@ export default function ToolDetailPage({ params }: ToolDetailPageProps) {
                 <CardTitle>快速操作</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full" asChild>
-                  <a href={tool.url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    访问官网
-                  </a>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    const url = tool.website || tool.url
+                    console.log('侧边栏访问官网 clicked, URL:', url)
+                    if (url) {
+                      window.open(url, '_blank', 'noopener,noreferrer')
+                    } else {
+                      alert('暂无官网链接')
+                    }
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  访问官网
                 </Button>
                 <Button variant="outline" className="w-full" onClick={toggleFavorite}>
                   <Heart className="h-4 w-4 mr-2" />
                   {tool.is_favorited ? "取消收藏" : "添加到收藏"}
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigator.share?.({ title: tool.name, url: window.location.href })}
+                >
                   <Share2 className="h-4 w-4 mr-2" />
                   分享给朋友
                 </Button>

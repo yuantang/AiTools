@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Edit, Trash2, Save, X, Eye } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Eye, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,59 +11,27 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useAdminCategories } from "@/hooks/useAdminCategories"
 
 interface Category {
-  id: number
+  id: string
   name: string
   slug: string
-  description: string
-  icon: string
-  color: string
-  toolCount: number
-  popularityScore: number
+  description?: string
+  icon?: string
+  color?: string
+  tool_count?: number
+  popularity_score: number
   trending: boolean
-  avgRating: number
-  totalUsers: string
+  avg_rating?: number
+  total_users?: number
   tags: string[]
-  featuredTools: string[]
-  parentId?: number
-  isActive: boolean
+  featured_tools: string[]
+  parent_id?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
-
-const mockCategories: Category[] = [
-  {
-    id: 1,
-    name: "AI写作",
-    slug: "ai-writing",
-    description: "文本生成、内容创作、写作助手等AI工具",
-    icon: "✍️",
-    color: "bg-blue-500",
-    toolCount: 156,
-    popularityScore: 95,
-    trending: true,
-    avgRating: 4.6,
-    totalUsers: "50M+",
-    tags: ["文本生成", "内容创作", "写作助手", "SEO优化"],
-    featuredTools: ["ChatGPT", "Claude", "Jasper"],
-    isActive: true,
-  },
-  {
-    id: 2,
-    name: "图像生成",
-    slug: "image-generation",
-    description: "AI绘画、图像创作、照片编辑等视觉AI工具",
-    icon: "🎨",
-    color: "bg-purple-500",
-    toolCount: 89,
-    popularityScore: 92,
-    trending: true,
-    avgRating: 4.7,
-    totalUsers: "30M+",
-    tags: ["AI绘画", "图像生成", "艺术创作", "照片编辑"],
-    featuredTools: ["Midjourney", "DALL-E", "Stable Diffusion"],
-    isActive: true,
-  },
-]
 
 const colorOptions = [
   { name: "蓝色", value: "bg-blue-500" },
@@ -81,10 +49,28 @@ const colorOptions = [
 ]
 
 export function CategoryManager() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
+  const {
+    data,
+    loading,
+    error,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+  } = useAdminCategories()
+
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState<Partial<Category>>({})
+
+  const categories = data?.categories || []
+  const statistics = data?.statistics || {
+    total: 0,
+    active: 0,
+    inactive: 0,
+    trending: 0,
+  }
+
+
 
   const handleCreate = () => {
     setIsCreating(true)
@@ -96,9 +82,10 @@ export function CategoryManager() {
       icon: "",
       color: "bg-blue-500",
       tags: [],
-      featuredTools: [],
+      featured_tools: [],
       trending: false,
-      isActive: true,
+      is_active: true,
+      popularity_score: 0,
     })
   }
 
@@ -108,30 +95,29 @@ export function CategoryManager() {
     setFormData({ ...category })
   }
 
-  const handleSave = () => {
-    if (isCreating) {
-      const newCategory: Category = {
-        ...formData,
-        id: Math.max(...categories.map((c) => c.id)) + 1,
-        toolCount: 0,
-        popularityScore: 0,
-        avgRating: 0,
-        totalUsers: "0",
-      } as Category
+  const handleSave = async () => {
+    try {
+      if (isCreating) {
+        await createCategory(formData)
+      } else if (editingCategory) {
+        await updateCategory(editingCategory.id, formData)
+      }
 
-      setCategories([...categories, newCategory])
-    } else if (editingCategory) {
-      setCategories(categories.map((c) => (c.id === editingCategory.id ? { ...c, ...formData } : c)))
+      setEditingCategory(null)
+      setIsCreating(false)
+      setFormData({})
+    } catch (error) {
+      // 错误已在hook中处理
     }
-
-    setEditingCategory(null)
-    setIsCreating(false)
-    setFormData({})
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm("确定要删除这个分类吗？")) {
-      setCategories(categories.filter((c) => c.id !== id))
+      try {
+        await deleteCategory(id)
+      } catch (error) {
+        // 错误已在hook中处理
+      }
     }
   }
 
@@ -173,6 +159,40 @@ export function CategoryManager() {
     })
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">分类管理</h2>
+            <p className="text-gray-600">管理AI工具的分类和标签</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600">加载中...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">分类管理</h2>
+            <p className="text-gray-600">管理AI工具的分类和标签</p>
+          </div>
+        </div>
+        <div className="text-center py-12">
+          <div className="text-red-500 mb-2">加载失败</div>
+          <div className="text-gray-500 text-sm">{error}</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -188,7 +208,20 @@ export function CategoryManager() {
 
       {/* Category List */}
       <div className="grid gap-4">
-        {categories.map((category) => (
+        {categories.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Plus className="h-12 w-12 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">暂无分类</h3>
+            <p className="text-gray-500 mb-4">开始创建您的第一个分类</p>
+            <Button onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              添加分类
+            </Button>
+          </div>
+        ) : (
+          categories.map((category) => (
           <Card key={category.id}>
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
@@ -201,7 +234,7 @@ export function CategoryManager() {
                       <h3 className="text-lg font-semibold">{category.name}</h3>
                       <Badge variant="secondary">/{category.slug}</Badge>
                       {category.trending && <Badge className="bg-red-100 text-red-800">热门</Badge>}
-                      {!category.isActive && (
+                      {!category.is_active && (
                         <Badge variant="outline" className="text-gray-500">
                           已禁用
                         </Badge>
@@ -210,19 +243,19 @@ export function CategoryManager() {
                     <p className="text-gray-600 mb-3">{category.description}</p>
                     <div className="grid grid-cols-4 gap-4 text-sm">
                       <div>
-                        <span className="font-medium">{category.toolCount}</span>
+                        <span className="font-medium">{category.tool_count || 0}</span>
                         <span className="text-gray-500 ml-1">个工具</span>
                       </div>
                       <div>
-                        <span className="font-medium">{category.avgRating}</span>
+                        <span className="font-medium">{category.avg_rating?.toFixed(1) || '0.0'}</span>
                         <span className="text-gray-500 ml-1">平均评分</span>
                       </div>
                       <div>
-                        <span className="font-medium">{category.totalUsers}</span>
+                        <span className="font-medium">{category.total_users || 0}</span>
                         <span className="text-gray-500 ml-1">用户</span>
                       </div>
                       <div>
-                        <span className="font-medium">{category.popularityScore}</span>
+                        <span className="font-medium">{category.popularity_score}</span>
                         <span className="text-gray-500 ml-1">热度</span>
                       </div>
                     </div>
@@ -251,7 +284,8 @@ export function CategoryManager() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Edit/Create Dialog */}
@@ -415,11 +449,11 @@ export function CategoryManager() {
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="isActive"
-                  checked={formData.isActive !== false}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked as boolean })}
+                  id="is_active"
+                  checked={formData.is_active !== false}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked as boolean })}
                 />
-                <Label htmlFor="isActive">启用分类</Label>
+                <Label htmlFor="is_active">启用分类</Label>
               </div>
             </div>
 

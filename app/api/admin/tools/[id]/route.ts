@@ -18,8 +18,7 @@ export async function GET(
       .from('tools')
       .select(`
         *,
-        categories(name),
-        users!tools_submitted_by_fkey(name, email)
+        categories(name)
       `)
       .eq('id', params.id)
       .single()

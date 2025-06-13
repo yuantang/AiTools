@@ -73,7 +73,7 @@ export default function ToolsPage() {
               <SelectContent>
                 <SelectItem value="全部">全部分类</SelectItem>
                 {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.slug}>
+                  <SelectItem key={category.id} value={category.id}>
                     {category.name}
                   </SelectItem>
                 ))}

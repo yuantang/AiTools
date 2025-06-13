@@ -41,7 +41,7 @@ export function useAdminCategories() {
       setError(null)
 
       const response = await fetch('/api/admin/categories')
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || '获取分类列表失败')
@@ -82,7 +82,7 @@ export function useAdminCategories() {
         title: "成功",
         description: "分类创建成功",
       })
-      
+
       // 刷新列表
       await fetchCategories()
       return result.category
@@ -117,7 +117,7 @@ export function useAdminCategories() {
         title: "成功",
         description: "分类更新成功",
       })
-      
+
       // 刷新列表
       await fetchCategories()
       return result.category
@@ -147,7 +147,7 @@ export function useAdminCategories() {
         title: "成功",
         description: "分类删除成功",
       })
-      
+
       // 刷新列表
       await fetchCategories()
     } catch (err) {

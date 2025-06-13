@@ -29,9 +29,8 @@ export async function GET(request: NextRequest) {
       .from('tools')
       .select(`
         *,
-        categories(name),
-        users!tools_submitted_by_fkey(name, email)
-      `)
+        categories(name)
+      `, { count: 'exact' })
 
     // 添加搜索条件
     if (search) {

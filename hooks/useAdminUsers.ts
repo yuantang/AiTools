@@ -65,13 +65,15 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
       if (options.verified) params.append('verified', 'true')
 
       const response = await fetch(`/api/admin/users?${params}`)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('API Error:', errorData)
         throw new Error(errorData.error || '获取用户列表失败')
       }
 
       const result = await response.json()
+      console.log('API Response:', result)
       setData(result)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取用户列表失败'
@@ -106,7 +108,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
         title: "成功",
         description: "用户创建成功",
       })
-      
+
       // 刷新列表
       await fetchUsers()
       return result.user
@@ -141,7 +143,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
         title: "成功",
         description: "用户更新成功",
       })
-      
+
       // 刷新列表
       await fetchUsers()
       return result.user
@@ -171,7 +173,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
         title: "成功",
         description: "用户删除成功",
       })
-      
+
       // 刷新列表
       await fetchUsers()
     } catch (err) {
